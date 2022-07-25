@@ -19,7 +19,7 @@ Goal:
 
 import fire
 
-from train import training_loop as train
+from train import training_loop as train, evaluate as eval
 
 def vis():
     """ visualize representation training results

@@ -102,3 +102,10 @@ class RewardPredictor(torch.nn.Module):
         x = self.history_encoder(x)    # (64,)
         r_hat = self.lstm_predictor(x) # (T, K)
         return r_hat
+
+if __name__ == '__main__':
+    # debug: (T_history, C, H, W)
+    inputs = torch.zeros((3, 3, 64, 64))
+    net = RewardPredictor(T=3, K=4)
+    outputs = net(inputs)
+    print(outputs)
