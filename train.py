@@ -17,25 +17,28 @@ def evaluate(
         obj_size=0.2,
         shapes_per_traj=2,
         rewards=[AgentXReward, AgentYReward, TargetXReward, TargetYReward],
+        batch_size=1,
     )
     dataset = MovingSpriteDataset(spec)
-    evaluation_data = torch.utils.data.DataLoader(dataset, batch_size=None)
+    evaluation_data = torch.utils.data.DataLoader(dataset)
     rewards = [ r.NAME for r in spec.rewards ]
 
-    net = RewardPredictor()
+    net = RewardPredictor(rewards)
     net.load_state_dict(torch.load(savedir))
     trajectory = next(iter(evaluation_data))
     inputs = trajectory["images"]
-    rewards = trajectory["rewards"]
-    labels = torch.stack([ rewards[r.name] for r in spec.rewards ])
+    raw_labels = trajectory["rewards"]
+    labels = torch.stack([ raw_labels[r] for r in rewards ])
     raw_outputs = net(inputs)
-    outputs = torch.stack([ raw_outputs[r.name] for r in spec.rewards ])
+    outputs = torch.stack([ raw_outputs[r] for r in rewards ])
     loss = torch.nn.functional.mse_loss(outputs, labels)
-    print(outputs, labels, loss.item())
+    print("outputs:", outputs)
+    print("labels:", labels)
+    print("loss:", loss.item())
 
 
 def training_loop(
-    steps=10000,
+    steps=1000,
     steps_per_save=100,
     batch_size=64,
     savedir="./logs/reward_model/"

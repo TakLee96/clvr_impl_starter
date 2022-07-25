@@ -60,7 +60,7 @@ class LSTMPredictor(torch.nn.Module):
         self.h_init = torch.nn.Parameter(torch.randn(1, 1, hidden_size))
         self.c_init = torch.nn.Parameter(torch.randn(1, 1, hidden_size))
         self.lstm = torch.nn.LSTM(input_size, hidden_size, num_layers=1, batch_first=True)
-        self.mlpk = { r: MLP(hidden_size, 1) for r in rewards }
+        self.mlpk = torch.nn.ModuleDict({ r: MLP(hidden_size, 1) for r in rewards })
 
     def forward(self, x):
         """ x: (B, T, 64)
@@ -95,7 +95,9 @@ if __name__ == '__main__':
     # TODO: debug network shapes
     from sprites_datagen.rewards import *
     inputs = torch.zeros((1, 3, 3, 64, 64))
-    rewards = [AgentXReward(), AgentYReward(), TargetXReward(), TargetYReward()]
+    rewards = [AgentXReward, AgentYReward, TargetXReward, TargetYReward]
+    rewards = [ r.NAME for r in rewards ]
     net = RewardPredictor(rewards)
+    print(net)
     outputs = net(inputs)
     print(outputs)
