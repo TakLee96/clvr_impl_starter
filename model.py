@@ -2,10 +2,9 @@ import numpy as np
 import torch
 
 class ImageEncoder(torch.nn.Module):
-    def __init__(self, R=64, dim_projection=64):
-        """ R: input image resolution """
+    def __init__(self, input_size=64, output_size=64):
         super().__init__()
-        self.R = R
+        self.R = input_size
 
         # strided convolution until RxR --> 1x1
         C = 4
@@ -13,7 +12,7 @@ class ImageEncoder(torch.nn.Module):
             torch.nn.Conv2d(3, C, kernel_size=3, stride=2),
             torch.nn.ReLU()
         ]
-        R = int(np.floor((R - 3) / 2 + 1))
+        R = int(np.floor((input_size - 3) / 2 + 1))
         while R > 1:
             layers.append(torch.nn.Conv2d(C, C * 2, 3, 2))
             layers.append(torch.nn.ReLU())
@@ -22,90 +21,81 @@ class ImageEncoder(torch.nn.Module):
         self.conv_layers = torch.nn.Sequential(*layers)
 
         self.C = C
-        self.projection = torch.nn.Linear(C, dim_projection)
+        self.projection = torch.nn.Linear(C, output_size)
     
     def forward(self, s):
-        """ image state representation s: (dim_batch, 3, R, R)
-            output state representation: (dim_batch, dim_projection)
+        """ image state representation s: (B, T, 3, R, R)
+            @return (B, T, O)
         """
-        assert s.shape[1:] == (3, self.R, self.R), s.shape
-        dim_batch = s.shape[0]
+        B = s.shape[0]
+        T = s.shape[1]
+        # assert s.shape[2:] == (3, self.R, self.R), s.shape
 
-        z = self.conv_layers(s)
-
-        assert z.shape == (dim_batch, self.C, 1, 1), z.shape
-        return self.projection(z.view([dim_batch, self.C]))
+        s = s.view(B * T, 3, self.R, self.R)
+        z = self.conv_layers(s)  # (B * T, C, 1, 1)
+        return self.projection(z.view([B, T, self.C]))
 
 
 class MLP(torch.nn.Module):
-    def __init__(self, dim_input, dim_output, n_layers=3, dim_hidden_units=32):
+    def __init__(self, input_size, output_size, n_layers=3, hidden_size=32):
         super().__init__()
-        H = dim_hidden_units
+        H = hidden_size
 
-        layers = [ torch.nn.Linear(dim_input, H), torch.nn.ReLU() ]
+        layers = [ torch.nn.Linear(input_size, H), torch.nn.ReLU() ]
         for _ in range(n_layers - 2):
             layers.append(torch.nn.Linear(H, H))
             layers.append(torch.nn.ReLU())
-        layers.append(torch.nn.Linear(H, dim_output))
+        layers.append(torch.nn.Linear(H, output_size))
 
         self.mlp = torch.nn.Sequential(*layers)
     
     def forward(self, x):
         return self.mlp(x)
 
-class HistoryEncoder(torch.nn.Module):
-    def __init__(self, T=3, dim_state=64, dim_hidden=64):
-        """ T: number of history states to encode """
-        super().__init__()
-        self.T = T
-        self.dim_state = dim_state
-        self.mlp = MLP(T * dim_state, dim_hidden)
-
-    def forward(self, s):
-        assert s.shape == (self.T, self.dim_state), s.shape
-        return self.mlp(torch.flatten(s))
 
 class LSTMPredictor(torch.nn.Module):
-    def __init__(self, T, K, dim_hidden=64):
-        """ T: rollout time steps
-            K: number of tasks to model reward
-        """
+    def __init__(self, rewards, input_size=64, hidden_size=64):
+        """ rewards: list of rewards """
         super().__init__()
-        self.T = T
-        self.lstm = torch.nn.LSTM(dim_hidden, dim_hidden, num_layers=1)
-        self.mlpk = MLP(dim_hidden, K)
+        self.h_init = torch.nn.Parameter(torch.randn(1, 1, hidden_size))
+        self.c_init = torch.nn.Parameter(torch.randn(1, 1, hidden_size))
+        self.lstm = torch.nn.LSTM(input_size, hidden_size, num_layers=1, batch_first=True)
+        self.mlpk = { r: MLP(hidden_size, 1) for r in rewards }
 
-    def forward(self, z):
-        """ z: (64,)
-            r: (T, K)
+    def forward(self, x):
+        """ x: (B, T, 64)
+            @return { "reward_name": (B, T, 1) }
         """
-        y, h = self.lstm(z[None,None,:])
-        rewards = [ self.mlpk(torch.flatten(y)) ]
-        for _ in range(self.T - 1):
-            y, h = self.lstm(y, h)
-            rewards.append(self.mlpk(torch.flatten(y)))
-        return torch.stack(rewards)
+        B = x.shape[0]
+        y, _ = self.lstm(x, (
+            self.h_init.expand(1, B, -1),
+            self.c_init.expand(1, B, -1)
+        )) # (T, 64)
+        output_dict = {}
+        for r, mlp in self.mlpk.items():
+            output = mlp(y)
+            # assert output.shape[-1] == 1, output.shape
+            output_dict[r] = output.view(output.shape[:-1])
+        return output_dict
+
 
 class RewardPredictor(torch.nn.Module):
-    def __init__(self, T, K):
-        """ T: rollout time steps
-            K: number of tasks to model reward
-        """
+    def __init__(self, rewards):
         super().__init__()
         self.image_encoder = ImageEncoder()
-        self.history_encoder = HistoryEncoder()
-        self.lstm_predictor = LSTMPredictor(T, K)
+        self.lstm_predictor = LSTMPredictor(rewards)
     
     def forward(self, x):
-        """ x: images (B, C, H, W) """
-        x = self.image_encoder(x)      # (B, 64)
-        x = self.history_encoder(x)    # (64,)
-        r_hat = self.lstm_predictor(x) # (T, K)
-        return r_hat
+        """ x: images (B, T, C, H, W) """
+        z = self.image_encoder(x)
+        return self.lstm_predictor(z)
+
 
 if __name__ == '__main__':
-    # debug: (T_history, C, H, W)
-    inputs = torch.zeros((3, 3, 64, 64))
-    net = RewardPredictor(T=3, K=4)
+    # TODO: debug network shapes
+    from sprites_datagen.rewards import *
+    inputs = torch.zeros((1, 3, 3, 64, 64))
+    rewards = [AgentXReward(), AgentYReward(), TargetXReward(), TargetYReward()]
+    net = RewardPredictor(rewards)
     outputs = net(inputs)
     print(outputs)

@@ -7,7 +7,9 @@ from model import RewardPredictor
 from general_utils import AttrDict
 
 
-def evaluate(savedir="./logs/reward_model/step-9099.pth"):
+def evaluate(
+    savedir="./logs/reward_model/step-9099.pth"
+):
     spec = AttrDict(
         resolution=64,
         max_seq_len=30,
@@ -17,65 +19,73 @@ def evaluate(savedir="./logs/reward_model/step-9099.pth"):
         rewards=[AgentXReward, AgentYReward, TargetXReward, TargetYReward],
     )
     dataset = MovingSpriteDataset(spec)
-    evaluation_data = torch.utils.data.DataLoader(dataset, batch_size=1)
+    evaluation_data = torch.utils.data.DataLoader(dataset, batch_size=None)
+    rewards = [ r.NAME for r in spec.rewards ]
 
-    net = RewardPredictor(T=3, K=4)
+    net = RewardPredictor()
     net.load_state_dict(torch.load(savedir))
-    criterion = torch.nn.MSELoss()
-
-    for trajectory in evaluation_data:
-        for i in range(spec.max_seq_len - 4):
-            inputs = trajectory["images"][0, i:i+3, ...]
-            labels = torch.stack([ trajectory["rewards"][r.NAME][0,i+2:i+5] for r in spec.rewards ], dim=1)
-
-            outputs = net(inputs)
-            loss = criterion(outputs, labels)
-            print(i, outputs, labels, loss.item())
+    trajectory = next(iter(evaluation_data))
+    inputs = trajectory["images"]
+    rewards = trajectory["rewards"]
+    labels = torch.stack([ rewards[r.name] for r in spec.rewards ])
+    raw_outputs = net(inputs)
+    outputs = torch.stack([ raw_outputs[r.name] for r in spec.rewards ])
+    loss = torch.nn.functional.mse_loss(outputs, labels)
+    print(outputs, labels, loss.item())
 
 
-def training_loop(epoch=10, savedir="./logs/reward_model/"):
+def training_loop(
+    steps=10000,
+    steps_per_save=100,
+    batch_size=64,
+    savedir="./logs/reward_model/"
+):
     """ train for specified steps """
     pathlib.Path(savedir).mkdir(parents=True, exist_ok=True)
 
     spec = AttrDict(
-        resolution=64,
-        max_seq_len=30,
+        resolution=64,  # R
+        max_seq_len=30, # L
         max_speed=0.05,
         obj_size=0.2,
         shapes_per_traj=2,
         rewards=[AgentXReward, AgentYReward, TargetXReward, TargetYReward],
+        batch_size=batch_size
     )
     dataset = MovingSpriteDataset(spec)
-    training_data = torch.utils.data.DataLoader(dataset, batch_size=1)
+    training_data = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+    rewards = [ r.NAME for r in spec.rewards ]
 
-    net = RewardPredictor(T=3, K=4)
+    net = RewardPredictor(rewards)
     print(net)
-    criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(
         net.parameters(),
         lr=1e-3,
         betas=(0.9, 0.999)
     )
 
-    for ep in range(epoch):
-        t = time.time()
-        for _, trajectory in enumerate(training_data):
-            # trajectory.images (1, 30, 3, 128, 128)
-            # trajectory.rewards { 'reward_name': tensor(shape=(1, 30)) }
+    try:
+        for step in range(steps):
+            t = time.time()
+            trajectory = next(iter(training_data))
             # trajectory.states (1, 30, 2, 2)
-            # TODO: design decision; how to handle first 2 frames?
-            for i in range(spec.max_seq_len - 4):
-                inputs = trajectory["images"][0, i:i+3, ...]
+            inputs = trajectory["images"]   # (B, L, 3, R, R)
+            raw_labels = trajectory["rewards"] # dict(K) => (B, L)
+            labels = torch.stack([ raw_labels[r] for r in rewards ])   # (K, B, L)
 
-                labels = torch.stack([ trajectory["rewards"][r.NAME][0,i+2:i+5] for r in spec.rewards ], dim=1)
+            optimizer.zero_grad()
+            raw_outputs = net(inputs)  # (K, B, L)
+            outputs = torch.stack([ raw_outputs[r] for r in rewards ]) # (K, B, L)
+            # assert labels.shape == outputs.shape, f"{labels} {outputs}"
 
-                optimizer.zero_grad()
-                outputs = net(inputs)
+            loss = torch.nn.functional.mse_loss(outputs, labels)
+            loss.backward()
+            optimizer.step()
 
-                loss = criterion(outputs, labels)
-                loss.backward()
-                optimizer.step()
-
-        print(f"[{time.time() - t:.3f}s] epoch={ep} loss={loss.item():.5f}")
-        if ep % 1000 == 999:
-            torch.save(net.state_dict(), savedir + f"step-{ep}.pth")
+            print(f"[{time.time() - t:.3f}s] step={step} loss={loss.item():.5f}")
+            if step % steps_per_save == (steps_per_save - 1):
+                torch.save(net.state_dict(), savedir + f"step-{step}.pth")
+                print("saved model to " + savedir + f"step-{step}.pth")
+    except KeyboardInterrupt:
+        torch.save(net.state_dict(), savedir + f"step-{step}.pth")
+        print("saved model to " + savedir + f"step-{step}.pth")
