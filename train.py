@@ -8,7 +8,7 @@ from general_utils import AttrDict
 
 
 def evaluate(
-    savedir="./logs/reward_model/step-9099.pth"
+    savedir="./logs/reward_model/step-999.pth"
 ):
     spec = AttrDict(
         resolution=64,
@@ -58,6 +58,18 @@ def training_loop(
     dataset = MovingSpriteDataset(spec)
     training_data = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
     rewards = [ r.NAME for r in spec.rewards ]
+
+    # import cv2
+    # trajectory = next(iter(training_data))
+    # images = trajectory["images"][0] # B, L, 3, R, R
+    # labels = [ trajectory["rewards"][r][0] for r in rewards ]
+    # for i in range(30):
+    #     image = ((images[i].numpy() + 1.) * 122.5)
+    #     label = (labels[0][i], labels[1][i], labels[2][i], labels[3][i])
+    #     name = f"vis/{i}_" + "{:.3f}_{:.3f}_{:.3f}_{:.3f}.jpg".format(*label)
+    #     cv2.imwrite(name, image.transpose(1, 2, 0))
+    #     print(f"{name} written")
+    # exit()
 
     net = RewardPredictor(rewards)
     print(net)
