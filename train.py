@@ -3,15 +3,17 @@ import time
 import torch
 import pathlib
 from sprites_datagen.moving_sprites import MovingSpriteDataset
-from sprites_datagen.rewards import *
+import sprites_datagen.rewards as R
 from model import RewardPredictor, StateDecoder
 from general_utils import AttrDict
 
 
 def visualize_decoder(
+    shape_per_traj=2,
     encoder_savedir="./logs/reward_model/step-999.pth",
     decoder_savedir="./logs/decode_model/step-399.pth",
-    savedir="./logs/vis_dataset/"
+    savedir="./logs/vis_dataset/",
+    rewards=["AgentXReward", "AgentYReward", "TargetXReward", "TargetYReward"]
 ):
     pathlib.Path(savedir).mkdir(parents=True, exist_ok=True)
 
@@ -20,8 +22,8 @@ def visualize_decoder(
         max_seq_len=30,
         max_speed=0.05,
         obj_size=0.2,
-        shapes_per_traj=2,
-        rewards=[AgentXReward, AgentYReward, TargetXReward, TargetYReward],
+        shapes_per_traj=shape_per_traj,
+        rewards=[ getattr(R, r) for r in rewards ],
         batch_size=1,
     )
     dataset = MovingSpriteDataset(spec)
@@ -40,8 +42,6 @@ def visualize_decoder(
     trajectory = next(iter(evaluation_data))
     images = trajectory["images"] # B, L, 3, R, R
     output = decoder(encoder(images)[0])
-    # print(images[0][0])
-    # print(output[0][0])
     for i in range(30):
         imgfmt = lambda img: (122.5 * (img.numpy() + 1.)).transpose(1, 2, 0)
         
@@ -53,8 +53,10 @@ def train_decoder(
     steps=10000,
     steps_per_save=100,
     batch_size=64,
+    shape_per_traj=2,
     encoder_savedir="./logs/reward_model/step-999.pth",
-    savedir="./logs/decode_model/"
+    savedir="./logs/decode_model/",
+    rewards=["AgentXReward", "AgentYReward", "TargetXReward", "TargetYReward"]
 ):
     pathlib.Path(savedir).mkdir(parents=True, exist_ok=True)
     
@@ -63,8 +65,8 @@ def train_decoder(
         max_seq_len=30,
         max_speed=0.05,
         obj_size=0.2,
-        shapes_per_traj=2,
-        rewards=[AgentXReward, AgentYReward, TargetXReward, TargetYReward],
+        shapes_per_traj=shape_per_traj,
+        rewards=[ getattr(R, r) for r in rewards ],
         batch_size=batch_size,
     )
     dataset = MovingSpriteDataset(spec)
@@ -107,15 +109,17 @@ def train_decoder(
 
 
 def eval_encoder(
-    savedir="./logs/reward_model/step-999.pth"
+    shape_per_traj=2,
+    savedir="./logs/reward_model/step-999.pth",
+    rewards=["AgentXReward", "AgentYReward", "TargetXReward", "TargetYReward"]
 ):
     spec = AttrDict(
         resolution=64,
         max_seq_len=30,
         max_speed=0.05,
         obj_size=0.2,
-        shapes_per_traj=2,
-        rewards=[AgentXReward, AgentYReward, TargetXReward, TargetYReward],
+        shapes_per_traj=shape_per_traj,
+        rewards=[ getattr(R, r) for r in rewards ],
         batch_size=1,
     )
     dataset = MovingSpriteDataset(spec)
@@ -137,7 +141,9 @@ def eval_encoder(
 
 
 def visualize_dataset(
-    savedir="./logs/vis_dataset/"
+    shape_per_traj=2,
+    savedir="./logs/vis_dataset/",
+    rewards=["AgentXReward", "AgentYReward", "TargetXReward", "TargetYReward"]
 ):
     pathlib.Path(savedir).mkdir(parents=True, exist_ok=True)
 
@@ -146,8 +152,8 @@ def visualize_dataset(
         max_seq_len=30, # L
         max_speed=0.05,
         obj_size=0.2,
-        shapes_per_traj=2,
-        rewards=[AgentXReward, AgentYReward, TargetXReward, TargetYReward],
+        shapes_per_traj=shape_per_traj,
+        rewards=[ getattr(R, r) for r in rewards ],
         batch_size=1
     )
     dataset = MovingSpriteDataset(spec)
@@ -159,8 +165,8 @@ def visualize_dataset(
     labels = [ trajectory["rewards"][r][0] for r in rewards ]
     for i in range(30):
         image = ((images[i].numpy() + 1.) * 122.5)
-        label = (labels[0][i], labels[1][i], labels[2][i], labels[3][i])
-        name = savedir + f"{i}_" + "{:.3f}_{:.3f}_{:.3f}_{:.3f}.jpg".format(*label)
+        suffix = "_".join(["{:.3f}".format(labels[j][i]) for j in range(len(rewards))])
+        name = savedir + f"{i}_" + suffix + ".jpg"
         cv2.imwrite(name, image.transpose(1, 2, 0))
         print(f"{name} written")
 
@@ -169,7 +175,9 @@ def train_encoder(
     steps=1000,
     steps_per_save=100,
     batch_size=64,
-    savedir="./logs/reward_model/"
+    shape_per_traj=2,
+    savedir="./logs/reward_model/",
+    rewards=["AgentXReward", "AgentYReward", "TargetXReward", "TargetYReward"]
 ):
     pathlib.Path(savedir).mkdir(parents=True, exist_ok=True)
 
@@ -178,25 +186,13 @@ def train_encoder(
         max_seq_len=30, # L
         max_speed=0.05,
         obj_size=0.2,
-        shapes_per_traj=2,
-        rewards=[AgentXReward, AgentYReward, TargetXReward, TargetYReward],
+        shapes_per_traj=shape_per_traj,
+        rewards=[ getattr(R, r) for r in rewards ],
         batch_size=batch_size
     )
     dataset = MovingSpriteDataset(spec)
     training_data = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
     rewards = [ r.NAME for r in spec.rewards ]
-
-    # import cv2
-    # trajectory = next(iter(training_data))
-    # images = trajectory["images"][0] # B, L, 3, R, R
-    # labels = [ trajectory["rewards"][r][0] for r in rewards ]
-    # for i in range(30):
-    #     image = ((images[i].numpy() + 1.) * 122.5)
-    #     label = (labels[0][i], labels[1][i], labels[2][i], labels[3][i])
-    #     name = f"logs/vis/{i}_" + "{:.3f}_{:.3f}_{:.3f}_{:.3f}.jpg".format(*label)
-    #     cv2.imwrite(name, image.transpose(1, 2, 0))
-    #     print(f"{name} written")
-    # exit()
 
     net = RewardPredictor(rewards)
     print(net)
