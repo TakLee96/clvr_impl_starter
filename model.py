@@ -3,10 +3,10 @@ import torch
 
 
 class StateDecoder(torch.nn.Module):
-    def __init__(self, input_size=64, output_size=64):
+    def __init__(self, input_size=64, output_size=64, hidden_size=128):
         super().__init__()
         self.output_size = output_size
-        self.mlp = MLP(input_size, output_size * output_size)
+        self.mlp = MLP(input_size=input_size, output_size=output_size * output_size, n_layers=4, hidden_size=hidden_size)
 
     def forward(self, x):
         """ x: (B, T, C) """

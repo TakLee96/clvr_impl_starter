@@ -48,6 +48,7 @@ def visualize_decoder(
         cv2.imwrite(savedir + f"{i}_origin.jpg", imgfmt(images[0][i]))
         cv2.imwrite(savedir + f"{i}_decode.jpg", imgfmt(output[0][i]))
         print(f"{i}")
+    print(f"images written to {savedir}")
 
 def train_decoder(
     steps=10000,
