@@ -1,6 +1,24 @@
 import numpy as np
 import torch
 
+
+class StateDecoder(torch.nn.Module):
+    def __init__(self, input_size=64, output_size=64):
+        super().__init__()
+        self.output_size = output_size
+        self.mlp = MLP(input_size, output_size * output_size)
+
+    def forward(self, x):
+        """ x: (B, T, C) """
+        B = x.shape[0]
+        T = x.shape[1]
+        R = self.output_size
+
+        x = self.mlp(x)
+        x = x.view(B, T, 1, R, R)
+        return x.expand(B, T, 3, R, R)
+
+
 class ImageEncoder(torch.nn.Module):
     def __init__(self, input_size=64, output_size=64):
         super().__init__()
@@ -76,7 +94,7 @@ class LSTMPredictor(torch.nn.Module):
             output = mlp(y)
             # assert output.shape[-1] == 1, output.shape
             output_dict[r] = output.view(output.shape[:-1])
-        return output_dict
+        return y, output_dict
 
 
 class RewardPredictor(torch.nn.Module):

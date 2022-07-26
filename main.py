@@ -19,7 +19,13 @@ Goal:
 
 import fire
 
-from train import training_loop as train, evaluate as eval
+from train import (
+    train_encoder,
+    eval_encoder,
+    train_decoder,
+    visualize_decoder,
+    visualize_dataset
+)
 
 def vis():
     """ visualize representation training results
