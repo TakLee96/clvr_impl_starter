@@ -71,7 +71,7 @@ def train_decoder(
         batch_size=batch_size,
     )
     dataset = MovingSpriteDataset(spec)
-    training_data = torch.utils.data.DataLoader(dataset)
+    training_data = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
     rewards = [ r.NAME for r in spec.rewards ]
 
     frozen_encoder = RewardPredictor(rewards)
