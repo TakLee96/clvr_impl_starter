@@ -27,15 +27,5 @@ from train import (
     visualize_dataset
 )
 
-def vis():
-    """ visualize representation training results
-        by default reads from "logs/repr"
-    """
-    pass
-
-def rl():
-    """ oracle, image-pretrained, image-scratch """
-    pass
-
 if __name__ == '__main__':
     fire.Fire()
