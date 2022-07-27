@@ -32,10 +32,12 @@ def visualize_decoder(
 
     encoder = RewardPredictor(rewards)
     encoder.load_state_dict(torch.load(encoder_savedir))
+    print(f"{encoder_savedir} loaded")
     for param in encoder.parameters():
         param.requires_grad = False
     decoder = StateDecoder()
     decoder.load_state_dict(torch.load(decoder_savedir))
+    print(f"{decoder_savedir} loaded")
     for param in decoder.parameters():
         param.requires_grad = False
 
@@ -49,6 +51,7 @@ def visualize_decoder(
         cv2.imwrite(savedir + f"{i}_decode.jpg", imgfmt(output[0][i]))
         print(f"{i}")
     print(f"images written to {savedir}")
+
 
 def train_decoder(
     steps=10000,
@@ -76,6 +79,7 @@ def train_decoder(
 
     frozen_encoder = RewardPredictor(rewards)
     frozen_encoder.load_state_dict(torch.load(encoder_savedir))
+    print(f"{encoder_savedir} loaded")
     for param in frozen_encoder.parameters():
         param.requires_grad = False
     
@@ -129,6 +133,8 @@ def eval_encoder(
 
     net = RewardPredictor(rewards)
     net.load_state_dict(torch.load(savedir))
+    print(f"{savedir} loaded")
+
     trajectory = next(iter(evaluation_data))
     inputs = trajectory["images"]
     raw_labels = trajectory["rewards"]
