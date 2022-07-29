@@ -378,6 +378,8 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--exp_name', type=str, default='ppo')
     parser.add_argument('--data_dir', type=str, default='./logs')
+    parser.add_argument('--savedir', type=str, default=None)
+    parser.add_argument('--freeze', action='store_true')
     args = parser.parse_args()
 
     mpi_fork(args.cpu)  # run parallel code with mpi
@@ -386,5 +388,6 @@ if __name__ == '__main__':
     logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed, data_dir=args.data_dir)
 
     ppo(lambda : gym.make(args.env), actor_critic=getattr(core, args.model),
+        ac_kwargs={ "savedir": args.savedir, "freeze": args.freeze },
         gamma=args.gamma, seed=args.seed, steps_per_epoch=args.steps,
         epochs=args.epochs, logger_kwargs=logger_kwargs)

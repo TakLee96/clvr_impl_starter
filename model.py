@@ -80,6 +80,7 @@ class LSTMPredictor(torch.nn.Module):
     def __init__(self, rewards, input_size=64, hidden_size=64):
         """ rewards: list of rewards """
         super().__init__()
+        self.hidden_size = hidden_size
         self.h_init = torch.nn.Parameter(torch.randn(1, 1, hidden_size))
         self.c_init = torch.nn.Parameter(torch.randn(1, 1, hidden_size))
         self.lstm = torch.nn.LSTM(input_size, hidden_size, num_layers=1, batch_first=True)

@@ -19,6 +19,7 @@ import torch.nn as nn
 from torch.distributions.normal import Normal
 from torch.distributions.categorical import Categorical
 
+import model
 
 def combined_shape(length, shape=None):
     if shape is None:
@@ -57,7 +58,6 @@ def discount_cumsum(x, discount):
 
 
 class Actor(nn.Module):
-
     def _distribution(self, obs):
         raise NotImplementedError
 
@@ -76,7 +76,6 @@ class Actor(nn.Module):
 
 
 class MLPCategoricalActor(Actor):
-    
     def __init__(self, obs_dim, act_dim, hidden_sizes, activation):
         super().__init__()
         self.logits_net = mlp([obs_dim] + list(hidden_sizes) + [act_dim], activation)
@@ -90,8 +89,7 @@ class MLPCategoricalActor(Actor):
 
 
 class MLPGaussianActor(Actor):
-
-    def __init__(self, obs_dim, act_dim, hidden_sizes, activation):
+    def __init__(self, obs_dim, act_dim, hidden_sizes=(64,64), activation=nn.Tanh):
         super().__init__()
         log_std = -0.5 * np.ones(act_dim, dtype=np.float32)
         self.log_std = torch.nn.Parameter(torch.as_tensor(log_std))
@@ -107,8 +105,7 @@ class MLPGaussianActor(Actor):
 
 
 class MLPCritic(nn.Module):
-
-    def __init__(self, obs_dim, hidden_sizes, activation):
+    def __init__(self, obs_dim, hidden_sizes=(64,64), activation=nn.Tanh):
         super().__init__()
         self.v_net = mlp([obs_dim] + list(hidden_sizes) + [1], activation)
 
@@ -116,12 +113,10 @@ class MLPCritic(nn.Module):
         return torch.squeeze(self.v_net(obs), -1) # Critical to ensure v has right shape.
 
 
-
 class MLPActorCritic(nn.Module):
     def __init__(self, observation_space, action_space, 
                  hidden_sizes=(64,64), activation=nn.Tanh):
         super().__init__()
-
         obs_dim = observation_space.shape[0]
 
         # policy builder depends on action space
@@ -139,6 +134,117 @@ class MLPActorCritic(nn.Module):
             a = pi.sample()
             logp_a = self.pi._log_prob_from_distribution(pi, a)
             v = self.v(obs)
+        return a.numpy(), v.numpy(), logp_a.numpy()
+
+    def act(self, obs):
+        return self.step(obs)[0]
+
+
+class ImageEncoderShim(nn.Module):
+    def __init__(self, image_encoder):
+        super().__init__()
+        self.image_encoder = image_encoder
+        self.output_size = image_encoder.lstm_predictor.hidden_size
+    
+    def forward(self, obs):
+        """ obs: either (64, 64) or (1000, 64, 64) """
+        if obs.dim() == 2:
+            H, W = obs.shape
+            obs = obs.view(1, 1, 1, H, W).expand(1, 1, 3, H, W)
+            y, _ = self.image_encoder(obs)
+            y = y.view(-1)
+        else: # loss mode
+            B, H, W = obs.shape
+            obs = obs.view(B, 1, 1, H, W).expand(B, 1, 3, H, W)
+            y, _  = self.image_encoder(obs)
+        return y
+
+
+class ImageActor(Actor):
+    def __init__(self, freeze, image_encoder, act_dim):
+        super().__init__()
+        self.freeze = freeze
+        if freeze:
+            self.image_encoder = [ image_encoder ]
+        else:
+            self.image_encoder = image_encoder
+        self.actor = MLPGaussianActor(image_encoder.output_size, act_dim)
+
+    @property
+    def encoder(self):
+        if self.freeze:
+            return self.image_encoder[0]
+        else:
+            return self.image_encoder
+
+    def _distribution(self, obs):
+        y = self.encoder(obs)
+        return self.actor._distribution(y)
+    
+    def _fast_distribution(self, y):
+        return self.actor._distribution(y)
+
+    def _log_prob_from_distribution(self, pi, act):
+        return pi.log_prob(act).sum(axis=-1)
+
+
+class ImageCritic(nn.Module):
+    def __init__(self, freeze, image_encoder):
+        super().__init__()
+        self.freeze = freeze
+        if freeze:
+            self.image_encoder = [ image_encoder ]
+        else:
+            self.image_encoder = image_encoder
+        self.critic = MLPCritic(image_encoder.output_size)
+
+    @property
+    def encoder(self):
+        if self.freeze:
+            return self.image_encoder[0]
+        else:
+            return self.image_encoder
+
+    def forward(self, obs):
+        y = self.encoder(obs)
+        return self.critic(y)
+    
+    def fast_forward(self, y):
+        return self.critic(y)
+
+
+class ImageActorCritic(nn.Module):
+    def __init__(self, observation_space, action_space,
+                 savedir=None, freeze=True):
+        super().__init__()
+        image_encoder = model.RewardPredictor([
+            "agent_x", "agent_y",
+            "target_x", "target_y"
+        ])
+        if savedir is not None:
+            image_encoder.load_state_dict(torch.load(savedir))
+            print(f'Loaded {savedir}')
+        else:
+            print('Start from Scratch')
+        if freeze:
+            for param in image_encoder.parameters():
+                param.require_grad = False
+            print(">>> FREEZE <<<")
+        else:
+            print(">>> TRAINABLE <<<")
+        assert observation_space.shape[0] == image_encoder.image_encoder.R
+
+        self.image_encoder = ImageEncoderShim(image_encoder)
+        self.pi = ImageActor(freeze, self.image_encoder, action_space.shape[0])
+        self.v  = ImageCritic(freeze, self.image_encoder)
+
+    def step(self, obs):
+        with torch.no_grad():
+            y = self.image_encoder(obs)
+            pi = self.pi._fast_distribution(y)
+            a = pi.sample()
+            logp_a = self.pi._log_prob_from_distribution(pi, a)
+            v = self.v.fast_forward(y)
         return a.numpy(), v.numpy(), logp_a.numpy()
 
     def act(self, obs):
