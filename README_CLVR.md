@@ -29,7 +29,8 @@ I ended up going with the 2nd approach as I think it is cleaner; however, the co
 would not work, if the environment we're working with can terminate early; the
 batching during actor and critic gradient update part will be messed up.
 
-### Future Work
+
+## Future Work
 
 In theory, the convolution operation is translation invariant, meaning that if we
 keep running the convolution operation until the image size goes to 1x1, then we
@@ -40,8 +41,8 @@ about its original position.
 Using this convolution backbone to train for a reward function that depends on
 horizontal and vertical location of the "agents" is forcing the network to learn
 something it is not intended to learn. Even thought the model is powerful enough
-that it actually converged, I still think it's learning weird hacks, e.g:
+that it actually converged, I still think it's likely learning weird hacks, e.g:
 
-* Use LSTM to figure out motion patter and guess agent locations
+* Use LSTM to figure out motion pattern and guess agent locations
 * Use the fact that convolution padding always =0 to develop its sense of border
   and thus become capable to compute x and y offsets from border

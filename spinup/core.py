@@ -114,8 +114,8 @@ class MLPCritic(nn.Module):
 
 
 class MLPActorCritic(nn.Module):
-    def __init__(self, observation_space, action_space, 
-                 hidden_sizes=(64,64), activation=nn.Tanh):
+    def __init__(self, observation_space, action_space,
+                 hidden_sizes=(64,64), activation=nn.Tanh, *args, **kwargs):
         super().__init__()
         obs_dim = observation_space.shape[0]
 
@@ -127,6 +127,9 @@ class MLPActorCritic(nn.Module):
 
         # build value function
         self.v  = MLPCritic(obs_dim, hidden_sizes, activation)
+
+    def reset(self):
+        pass
 
     def step(self, obs):
         with torch.no_grad():
