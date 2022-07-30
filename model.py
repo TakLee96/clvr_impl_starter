@@ -86,21 +86,30 @@ class LSTMPredictor(torch.nn.Module):
         self.lstm = torch.nn.LSTM(input_size, hidden_size, num_layers=1, batch_first=True)
         self.mlpk = torch.nn.ModuleDict({ r: MLP(hidden_size, 1) for r in rewards })
 
-    def forward(self, x):
-        """ x: (B, T, 64)
-            @return { "reward_name": (B, T, 1) }
+    def forward(self, x, hc=None):
+        """ B=batch T=time I=input H=hidden
+            x: (B, T, I)
+            hc: tuple(h, c)
+                h: (1, B, H)
+                c: (1, B, H)
+            @return
+                y: (B, T, H)
+                hc: same as input
+                { "reward_name": (B, T, 1) }
         """
         B = x.shape[0]
-        y, _ = self.lstm(x, (
-            self.h_init.expand(1, B, -1),
-            self.c_init.expand(1, B, -1)
-        )) # (T, 64)
+        if hc is None:
+            h = self.h_init.expand(1, B, -1)
+            c = self.c_init.expand(1, B, -1)
+            hc = (h, c)
+
+        y, hc = self.lstm(x, hc) # (T, 64)
         output_dict = {}
         for r, mlp in self.mlpk.items():
             output = mlp(y)
             # assert output.shape[-1] == 1, output.shape
             output_dict[r] = output.view(output.shape[:-1])
-        return y, output_dict
+        return y, hc, output_dict
 
 
 class RewardPredictor(torch.nn.Module):
@@ -109,10 +118,10 @@ class RewardPredictor(torch.nn.Module):
         self.image_encoder = ImageEncoder()
         self.lstm_predictor = LSTMPredictor(rewards)
     
-    def forward(self, x):
+    def forward(self, x, hc=None):
         """ x: images (B, T, C, H, W) """
         z = self.image_encoder(x)
-        return self.lstm_predictor(z)
+        return self.lstm_predictor(z, hc)
 
 
 if __name__ == '__main__':

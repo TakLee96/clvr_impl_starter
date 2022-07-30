@@ -223,6 +223,7 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     act_dim = env.action_space.shape
 
     # Create actor-critic module
+    ac_kwargs["max_ep_len"] = env.max_ep_len  # TODO(jiahang): remove hack
     ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
 
     # Sync params across processes
@@ -230,6 +231,9 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
     # Count variables
     var_counts = tuple(core.count_vars(module) for module in [ac.pi, ac.v])
+    print('ac.pi=', ac.pi)
+    print('ac.v=', ac.v)
+    print('ac=', ac)
     logger.log('\nNumber of parameters: \t pi: %d, \t v: %d\n'%var_counts)
 
     # Set up experience buffer
@@ -306,6 +310,7 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     # Prepare for interaction with environment
     start_time = time.time()
     o, ep_ret, ep_len = env.reset(), 0, 0
+    ac.reset() # TODO(jiahang): remove hack
 
     # Main loop: collect experience in env and update/log each epoch
     for epoch in range(epochs):
@@ -340,6 +345,7 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                     # only save EpRet / EpLen if trajectory finished
                     logger.store(EpRet=ep_ret, EpLen=ep_len)
                 o, ep_ret, ep_len = env.reset(), 0, 0
+                ac.reset() # TODO(jiahang): remove hack
 
 
         # Save model

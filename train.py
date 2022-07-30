@@ -97,7 +97,7 @@ def train_decoder(
             inputs = trajectory["images"]   # (B, L, 3, R, R)
 
             optimizer.zero_grad()
-            y, _ = frozen_encoder(inputs)  # (B, L, H)
+            y = frozen_encoder(inputs)[0]  # (B, L, H)
             outputs = net(y) # (B, L, 3, R, R)
 
             loss = torch.nn.functional.mse_loss(outputs, inputs)
@@ -139,7 +139,7 @@ def eval_encoder(
     inputs = trajectory["images"]
     raw_labels = trajectory["rewards"]
     labels = torch.stack([ raw_labels[r] for r in rewards ])
-    _, raw_outputs = net(inputs)
+    raw_outputs = net(inputs)[-1]
     outputs = torch.stack([ raw_outputs[r] for r in rewards ])
     loss = torch.nn.functional.mse_loss(outputs, labels)
     print("outputs:", outputs)
@@ -219,7 +219,7 @@ def train_encoder(
             labels = torch.stack([ raw_labels[r] for r in rewards ])   # (K, B, L)
 
             optimizer.zero_grad()
-            _, raw_outputs = net(inputs)  # (K, B, L)
+            raw_outputs = net(inputs)[-1]  # (K, B, L)
             outputs = torch.stack([ raw_outputs[r] for r in rewards ]) # (K, B, L)
             # assert labels.shape == outputs.shape, f"{labels} {outputs}"
 

@@ -141,44 +141,64 @@ class MLPActorCritic(nn.Module):
 
 
 class ImageEncoderShim(nn.Module):
-    def __init__(self, image_encoder):
+    def __init__(self, image_encoder, max_ep_len):
         super().__init__()
+        # TOOD(jiahang): this is a bad design
+        self.hc = None
+        self.max_ep_len = max_ep_len
+
         self.image_encoder = image_encoder
         self.output_size = image_encoder.lstm_predictor.hidden_size
     
-    def forward(self, obs):
+    def reset(self):
+        self.hc = None
+
+    def forward(self, obs, simulation_mode=False):
         """ obs: either (64, 64) or (1000, 64, 64) """
-        if obs.dim() == 2:
+        if simulation_mode:
+            # simulation mode: remember hidden state
+            assert obs.dim() == 2
             H, W = obs.shape
             obs = obs.view(1, 1, 1, H, W).expand(1, 1, 3, H, W)
-            y, _ = self.image_encoder(obs)
+            y, self.hc, _ = self.image_encoder(obs, self.hc)
             y = y.view(-1)
-        else: # loss mode
-            B, H, W = obs.shape
-            obs = obs.view(B, 1, 1, H, W).expand(B, 1, 3, H, W)
-            y, _  = self.image_encoder(obs)
+        else:
+            # training mode
+            assert obs.dim() == 3
+            self.hc_prev = None
+            BT, H, W = obs.shape
+            assert BT % self.max_ep_len == 0
+
+            B = BT // self.max_ep_len
+            T = self.max_ep_len
+
+            obs = obs.view(B, T, 1, H, W).expand(B, T, 3, H, W)
+            y = self.image_encoder(obs)[0] # B, T, H
+            y = y.reshape(BT, -1)
         return y
 
 
 class ImageActor(Actor):
     def __init__(self, freeze, image_encoder, act_dim):
         super().__init__()
+
+        # hack: force torch to not register parameters if frozen
         self.freeze = freeze
         if freeze:
             self.image_encoder = [ image_encoder ]
         else:
             self.image_encoder = image_encoder
+
         self.actor = MLPGaussianActor(image_encoder.output_size, act_dim)
 
-    @property
-    def encoder(self):
+    def get_encoder(self):
         if self.freeze:
             return self.image_encoder[0]
         else:
             return self.image_encoder
 
     def _distribution(self, obs):
-        y = self.encoder(obs)
+        y = self.get_encoder()(obs)
         return self.actor._distribution(y)
     
     def _fast_distribution(self, y):
@@ -191,6 +211,8 @@ class ImageActor(Actor):
 class ImageCritic(nn.Module):
     def __init__(self, freeze, image_encoder):
         super().__init__()
+
+        # hack: force torch to not register parameters if frozen
         self.freeze = freeze
         if freeze:
             self.image_encoder = [ image_encoder ]
@@ -198,15 +220,14 @@ class ImageCritic(nn.Module):
             self.image_encoder = image_encoder
         self.critic = MLPCritic(image_encoder.output_size)
 
-    @property
-    def encoder(self):
+    def get_encoder(self):
         if self.freeze:
             return self.image_encoder[0]
         else:
             return self.image_encoder
 
     def forward(self, obs):
-        y = self.encoder(obs)
+        y = self.get_encoder()(obs)
         return self.critic(y)
     
     def fast_forward(self, y):
@@ -214,7 +235,7 @@ class ImageCritic(nn.Module):
 
 
 class ImageActorCritic(nn.Module):
-    def __init__(self, observation_space, action_space,
+    def __init__(self, observation_space, action_space, max_ep_len,
                  savedir=None, freeze=True):
         super().__init__()
         image_encoder = model.RewardPredictor([
@@ -229,18 +250,22 @@ class ImageActorCritic(nn.Module):
         if freeze:
             for param in image_encoder.parameters():
                 param.require_grad = False
-            print(">>> FREEZE <<<")
+            print("Image encoder weights FROZEN")
         else:
-            print(">>> TRAINABLE <<<")
+            print("Image encoder is TRAINABLE")
         assert observation_space.shape[0] == image_encoder.image_encoder.R
 
-        self.image_encoder = ImageEncoderShim(image_encoder)
+        self.image_encoder = ImageEncoderShim(image_encoder, max_ep_len)
         self.pi = ImageActor(freeze, self.image_encoder, action_space.shape[0])
         self.v  = ImageCritic(freeze, self.image_encoder)
 
+    def reset(self):
+        self.image_encoder.reset()
+
     def step(self, obs):
+        # simulation mode
         with torch.no_grad():
-            y = self.image_encoder(obs)
+            y = self.image_encoder(obs, simulation_mode=True)
             pi = self.pi._fast_distribution(y)
             a = pi.sample()
             logp_a = self.pi._log_prob_from_distribution(pi, a)
