@@ -89,7 +89,7 @@ class MLPCategoricalActor(Actor):
 
 
 class MLPGaussianActor(Actor):
-    def __init__(self, obs_dim, act_dim, hidden_sizes=(64,64), activation=nn.Tanh):
+    def __init__(self, obs_dim, act_dim, hidden_sizes=(64,64), activation=nn.ReLU):
         super().__init__()
         log_std = -0.5 * np.ones(act_dim, dtype=np.float32)
         self.log_std = torch.nn.Parameter(torch.as_tensor(log_std))
@@ -105,7 +105,7 @@ class MLPGaussianActor(Actor):
 
 
 class MLPCritic(nn.Module):
-    def __init__(self, obs_dim, hidden_sizes=(64,64), activation=nn.Tanh):
+    def __init__(self, obs_dim, hidden_sizes=(64,64), activation=nn.ReLU):
         super().__init__()
         self.v_net = mlp([obs_dim] + list(hidden_sizes) + [1], activation)
 
@@ -115,7 +115,7 @@ class MLPCritic(nn.Module):
 
 class MLPActorCritic(nn.Module):
     def __init__(self, observation_space, action_space,
-                 hidden_sizes=(64,64), activation=nn.Tanh, *args, **kwargs):
+                 hidden_sizes=(64,64), activation=nn.ReLU, *args, **kwargs):
         super().__init__()
         obs_dim = observation_space.shape[0]
 
