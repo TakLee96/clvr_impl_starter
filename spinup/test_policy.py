@@ -134,7 +134,10 @@ def run_policy(env, get_action, max_ep_len=None, num_episodes=100, render=True, 
     o, r, d, ep_ret, ep_len, n = env.reset(), 0, False, 0, 0, 0
     while n < num_episodes:
         if render:
-            assert cv2.imwrite(opath + f"{n}_{ep_len}.jpg", env.render())
+            iname = opath + f"{n}_{ep_len}.jpg"
+            print(f"{iname}")
+            assert cv2.imwrite(iname, env.render())
+            
 
         a = get_action(o)
         o, r, d, _ = env.step(a)

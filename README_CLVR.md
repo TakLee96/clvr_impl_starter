@@ -2,6 +2,14 @@
 
 Author: Jiahang(Tak) Li
 
+## ToDo
+
+* Visualize the trained policy and see if it makes sense
+* Print the "advantage" values and the predicted ones, see if it makes sense
+* Try to learn to predict the reward offline and show that the model is capable of learning it
+* Try to run more experiments on Google Colab with GPU (folder `gpu_scripts`)
+
+
 ## Problems Encountered
 
 ### Description of Encoder
