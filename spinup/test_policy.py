@@ -19,6 +19,8 @@ import torch
 from spinup import EpochLogger
 from spinup.utils.logx import restore_tf_graph
 
+import cv2
+import pathlib
 import sprites_env
 
 def load_policy_and_env(fpath, itr='last', deterministic=False):
@@ -120,19 +122,19 @@ def load_pytorch_policy(fpath, itr, deterministic=False):
     return get_action
 
 
-def run_policy(env, get_action, max_ep_len=None, num_episodes=100, render=True):
+def run_policy(env, get_action, max_ep_len=None, num_episodes=100, render=True, opath="logs/output/"):
 
     assert env is not None, \
         "Environment not found!\n\n It looks like the environment wasn't saved, " + \
         "and we can't run the agent in it. :( \n\n Check out the readthedocs " + \
         "page on Experiment Outputs for how to handle this situation."
+    pathlib.Path(opath).mkdir(parents=True, exist_ok=True)
 
     logger = EpochLogger()
     o, r, d, ep_ret, ep_len, n = env.reset(), 0, False, 0, 0, 0
     while n < num_episodes:
         if render:
-            env.render()
-            time.sleep(1e-3)
+            assert cv2.imwrite(opath + f"{n}_{ep_len}.jpg", env.render())
 
         a = get_action(o)
         o, r, d, _ = env.step(a)
@@ -154,8 +156,9 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('fpath', type=str)
+    parser.add_argument('opath', type=str)
     parser.add_argument('--len', '-l', type=int, default=0)
-    parser.add_argument('--episodes', '-n', type=int, default=100)
+    parser.add_argument('--episodes', '-n', type=int, default=1)
     parser.add_argument('--norender', '-nr', action='store_true')
     parser.add_argument('--itr', '-i', type=int, default=-1)
     parser.add_argument('--deterministic', '-d', action='store_true')
@@ -163,4 +166,4 @@ if __name__ == '__main__':
     env, get_action = load_policy_and_env(args.fpath, 
                                           args.itr if args.itr >=0 else 'last',
                                           args.deterministic)
-    run_policy(env, get_action, args.len, args.episodes, not(args.norender))
+    run_policy(env, get_action, args.len, args.episodes, not(args.norender), args.opath)

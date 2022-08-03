@@ -12,7 +12,7 @@ https://github.com/openai/spinningup.git
 
 import numpy as np
 import torch
-from torch.optim import Adam
+from torch.optim import RAdam
 import gym
 import time
 from spinup.utils.logx import EpochLogger
@@ -265,8 +265,8 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         return ((ac.v(obs) - ret)**2).mean()
 
     # Set up optimizers for policy and value function
-    pi_optimizer = Adam(ac.pi.parameters(), lr=pi_lr)
-    vf_optimizer = Adam(ac.v.parameters(), lr=vf_lr)
+    pi_optimizer = RAdam(ac.pi.parameters(), lr=pi_lr)
+    vf_optimizer = RAdam(ac.v.parameters(), lr=vf_lr)
 
     # Set up model saving
     logger.setup_pytorch_saver(ac)

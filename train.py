@@ -47,8 +47,8 @@ def visualize_decoder(
     for i in range(30):
         imgfmt = lambda img: (122.5 * (img.numpy() + 1.)).transpose(1, 2, 0)
         
-        cv2.imwrite(savedir + f"{i}_origin.jpg", imgfmt(images[0][i]))
-        cv2.imwrite(savedir + f"{i}_decode.jpg", imgfmt(output[0][i]))
+        assert cv2.imwrite(savedir + f"{i}_origin.jpg", imgfmt(images[0][i]))
+        assert cv2.imwrite(savedir + f"{i}_decode.jpg", imgfmt(output[0][i]))
         print(f"{i}")
     print(f"images written to {savedir}")
 
@@ -174,7 +174,7 @@ def visualize_dataset(
         image = ((images[i].numpy() + 1.) * 122.5)
         suffix = "_".join(["{:.3f}".format(labels[j][i]) for j in range(len(rewards))])
         name = savedir + f"{i}_" + suffix + ".jpg"
-        cv2.imwrite(name, image.transpose(1, 2, 0))
+        assert cv2.imwrite(name, image.transpose(1, 2, 0))
         print(f"{name} written")
 
 
