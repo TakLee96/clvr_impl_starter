@@ -29,7 +29,7 @@ class PPOBuffer:
     for calculating the advantages of state-action pairs.
     """
 
-    def __init__(self, obs_dim, act_dim, size, gamma=0.99, lam=0.95):
+    def __init__(self, obs_dim, act_dim, size, gamma=0.99, lam=0.95, device=None):
         self.obs_buf = np.zeros(core.combined_shape(size, obs_dim), dtype=np.float32)
         self.act_buf = np.zeros(core.combined_shape(size, act_dim), dtype=np.float32)
         self.adv_buf = np.zeros(size, dtype=np.float32)
@@ -39,6 +39,7 @@ class PPOBuffer:
         self.logp_buf = np.zeros(size, dtype=np.float32)
         self.gamma, self.lam = gamma, lam
         self.ptr, self.path_start_idx, self.max_size = 0, 0, size
+        self.device = device
 
     def store(self, obs, act, rew, val, logp):
         """
@@ -94,7 +95,7 @@ class PPOBuffer:
         self.adv_buf = (self.adv_buf - adv_mean) / adv_std
         data = dict(obs=self.obs_buf, act=self.act_buf, ret=self.ret_buf,
                     adv=self.adv_buf, logp=self.logp_buf)
-        return {k: torch.as_tensor(v, dtype=torch.float32) for k,v in data.items()}
+        return {k: torch.as_tensor(v, dtype=torch.float32).to(self.device) for k,v in data.items()}
 
 
 
@@ -225,6 +226,7 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     # Create actor-critic module
     ac_kwargs["max_ep_len"] = env.max_ep_len  # TODO(jiahang): remove hack
     ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
+    device = torch.device('cuda:0') if ac.use_gpu else torch.device('cpu')
 
     # Sync params across processes
     sync_params(ac)
@@ -236,7 +238,7 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
     # Set up experience buffer
     local_steps_per_epoch = int(steps_per_epoch / num_procs())
-    buf = PPOBuffer(obs_dim, act_dim, local_steps_per_epoch, gamma, lam)
+    buf = PPOBuffer(obs_dim, act_dim, local_steps_per_epoch, gamma, lam, device=device)
 
     # Set up function for computing PPO policy loss
     def compute_loss_pi(data):
@@ -313,7 +315,7 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     # Main loop: collect experience in env and update/log each epoch
     for epoch in range(epochs):
         for t in range(local_steps_per_epoch):
-            a, v, logp = ac.step(torch.as_tensor(o, dtype=torch.float32))
+            a, v, logp = ac.step(torch.as_tensor(o, dtype=torch.float32).to(device))
 
             next_o, r, d, _ = env.step(a)
             ep_ret += r
@@ -335,7 +337,7 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                     print('Warning: trajectory cut off by epoch at %d steps.'%ep_len, flush=True)
                 # if trajectory didn't reach terminal state, bootstrap value target
                 if timeout or epoch_ended:
-                    _, v, _ = ac.step(torch.as_tensor(o, dtype=torch.float32))
+                    _, v, _ = ac.step(torch.as_tensor(o, dtype=torch.float32).to(device))
                 else:
                     v = 0
                 buf.finish_path(v)
@@ -387,12 +389,19 @@ if __name__ == '__main__':
     parser.add_argument('--rewards', type=str, default="agent_x,agent_y,target_x,target_y")
     args = parser.parse_args()
 
+    if torch.cuda.is_available():
+        assert args.cpu == 1, 'use gpu dude'
+
     mpi_fork(args.cpu)  # run parallel code with mpi
 
     from spinup.utils.run_utils import setup_logger_kwargs
     logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed, data_dir=args.data_dir)
 
     ppo(lambda : gym.make(args.env), actor_critic=getattr(core, args.model),
-        ac_kwargs={ "savedir": args.savedir, "freeze": args.freeze, "rewards": args.rewards },
+        ac_kwargs={
+            "savedir": args.savedir,
+            "freeze": args.freeze,
+            "rewards": args.rewards
+        },
         gamma=args.gamma, seed=args.seed, steps_per_epoch=args.steps,
         epochs=args.epochs, logger_kwargs=logger_kwargs)

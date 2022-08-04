@@ -77,7 +77,7 @@ class MLP(torch.nn.Module):
 
 
 class LSTMPredictor(torch.nn.Module):
-    def __init__(self, rewards, input_size=64, hidden_size=64):
+    def __init__(self, rewards, input_size=64, hidden_size=64, use_gpu=False):
         """ rewards: list of rewards """
         super().__init__()
         self.hidden_size = hidden_size
@@ -85,6 +85,7 @@ class LSTMPredictor(torch.nn.Module):
         self.c_init = torch.nn.Parameter(torch.randn(1, 1, hidden_size))
         self.lstm = torch.nn.LSTM(input_size, hidden_size, num_layers=1, batch_first=True)
         self.mlpk = torch.nn.ModuleDict({ r: MLP(hidden_size, 1) for r in rewards })
+        self.use_gpu = use_gpu
 
     def forward(self, x, hc=None):
         """ B=batch T=time I=input H=hidden
@@ -103,6 +104,9 @@ class LSTMPredictor(torch.nn.Module):
             c = self.c_init.expand(1, B, -1)
             hc = (h, c)
 
+        if self.use_gpu:
+            hc = (hc[0].contiguous(), hc[1].contiguous())
+
         y, hc = self.lstm(x, hc) # (T, 64)
         output_dict = {}
         for r, mlp in self.mlpk.items():
@@ -113,10 +117,10 @@ class LSTMPredictor(torch.nn.Module):
 
 
 class RewardPredictor(torch.nn.Module):
-    def __init__(self, rewards):
+    def __init__(self, rewards, use_gpu=False):
         super().__init__()
         self.image_encoder = ImageEncoder()
-        self.lstm_predictor = LSTMPredictor(rewards)
+        self.lstm_predictor = LSTMPredictor(rewards, use_gpu=use_gpu)
     
     def forward(self, x, hc=None):
         """ x: images (B, T, C, H, W) """

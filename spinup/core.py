@@ -239,10 +239,14 @@ class ImageCritic(nn.Module):
 
 class ImageActorCritic(nn.Module):
     def __init__(self, observation_space, action_space, max_ep_len,
-                 savedir=None, freeze=True, rewards="agent_x,agent_y,target_x,target_y"):
+                 savedir=None, freeze=True,
+                 rewards="agent_x,agent_y,target_x,target_y"):
         super().__init__()
+        self.use_gpu = torch.cuda.is_available()
         image_encoder = model.RewardPredictor([
-            r.strip() for r in rewards.strip().split(',') if len(r.strip()) > 0 ])
+            r.strip() for r in rewards.split(',') if len(r.strip()) > 0 ],
+            use_gpu=self.use_gpu
+        )
         if savedir is not None:
             image_encoder.load_state_dict(torch.load(savedir))
             print(f'Loaded {savedir}')
@@ -271,6 +275,8 @@ class ImageActorCritic(nn.Module):
             a = pi.sample()
             logp_a = self.pi._log_prob_from_distribution(pi, a)
             v = self.v.fast_forward(y)
+        if self.use_gpu:
+            return a.to('cpu').numpy(), v.to('cpu').numpy(), logp_a.to('cpu').numpy()
         return a.numpy(), v.numpy(), logp_a.numpy()
 
     def act(self, obs):
