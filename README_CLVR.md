@@ -24,6 +24,40 @@ as initialization. I took it in my own interpretation and designed the network t
 * LSTM is an encoder only structure that directly connects with MLP to output
   rewards for each time step
 
+```
+RewardPredictor(
+  (image_encoder): ImageEncoder(
+    (conv_layers): Sequential(
+      (0): Conv2d(3, 4, kernel_size=(3, 3), stride=(2, 2))
+      (1): ReLU()
+      (2): Conv2d(4, 8, kernel_size=(3, 3), stride=(2, 2))
+      (3): ReLU()
+      (4): Conv2d(8, 16, kernel_size=(3, 3), stride=(2, 2))
+      (5): ReLU()
+      (6): Conv2d(16, 32, kernel_size=(3, 3), stride=(2, 2))
+      (7): ReLU()
+      (8): Conv2d(32, 64, kernel_size=(3, 3), stride=(2, 2))
+      (9): ReLU()
+    )
+    (projection): Linear(in_features=64, out_features=64, bias=True)
+  )
+  (lstm_predictor): LSTMPredictor(
+    (lstm): LSTM(64, 64, batch_first=True)
+    (mlpk): ModuleDict(
+      (dist): MLP(
+        (mlp): Sequential(
+          (0): Linear(in_features=64, out_features=32, bias=True)
+          (1): ReLU()
+          (2): Linear(in_features=32, out_features=32, bias=True)
+          (3): ReLU()
+          (4): Linear(in_features=32, out_features=1, bias=True)
+        )
+      )
+    )
+  )
+)
+```
+
 ### Stateful Encoder
 
 The image encoder is stateful rather than stateless, because the LSTM wants to know
