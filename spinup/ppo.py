@@ -231,8 +231,6 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
     # Count variables
     var_counts = tuple(core.count_vars(module) for module in [ac.pi, ac.v])
-    print('ac.pi=', ac.pi)
-    print('ac.v=', ac.v)
     print('ac=', ac)
     logger.log('\nNumber of parameters: \t pi: %d, \t v: %d\n'%var_counts)
 
@@ -386,6 +384,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', type=str, default='./logs')
     parser.add_argument('--savedir', type=str, default=None)
     parser.add_argument('--freeze', action='store_true')
+    parser.add_argument('--rewards', type=str, default="agent_x,agent_y,target_x,target_y")
     args = parser.parse_args()
 
     mpi_fork(args.cpu)  # run parallel code with mpi
@@ -394,6 +393,6 @@ if __name__ == '__main__':
     logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed, data_dir=args.data_dir)
 
     ppo(lambda : gym.make(args.env), actor_critic=getattr(core, args.model),
-        ac_kwargs={ "savedir": args.savedir, "freeze": args.freeze },
+        ac_kwargs={ "savedir": args.savedir, "freeze": args.freeze, "rewards": args.rewards },
         gamma=args.gamma, seed=args.seed, steps_per_epoch=args.steps,
         epochs=args.epochs, logger_kwargs=logger_kwargs)

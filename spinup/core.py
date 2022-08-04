@@ -239,13 +239,10 @@ class ImageCritic(nn.Module):
 
 class ImageActorCritic(nn.Module):
     def __init__(self, observation_space, action_space, max_ep_len,
-                 savedir=None, freeze=True):
+                 savedir=None, freeze=True, rewards="agent_x,agent_y,target_x,target_y"):
         super().__init__()
         image_encoder = model.RewardPredictor([
-            # "agent_x", "agent_y",
-            # "target_x", "target_y"
-            "dist"
-        ])
+            r.strip() for r in rewards.strip().split(',') if len(r.strip()) > 0 ])
         if savedir is not None:
             image_encoder.load_state_dict(torch.load(savedir))
             print(f'Loaded {savedir}')
