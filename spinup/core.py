@@ -127,6 +127,7 @@ class MLPActorCritic(nn.Module):
 
         # build value function
         self.v  = MLPCritic(obs_dim, hidden_sizes, activation)
+        self.use_gpu = False
 
     def reset(self):
         pass

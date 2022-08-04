@@ -4,10 +4,25 @@ Author: Jiahang(Tak) Li
 
 ## ToDo
 
-* Visualize the trained policy and see if it makes sense
+* Reason if it's problem with LSTM setup
 * Print the "advantage" values and the predicted ones, see if it makes sense
-* Try to learn to predict the reward offline and show that the model is capable of learning it
+* Print the gradient distribution from actor and critic, and see if it matches
+  + If not, we may need to tune learning rate
+  + We can also set learning rate for backbone separately
+  + But we should start with learning rate grid search
+* Reason if it's better to freeze backbone for one but not the other
+* Reason if we need to fine-tune PPO hyperparams
+
+## Done
+* Visualize the trained policy and see if it makes sense
+  + With sufficient training steps, state-based agent is doing what's expected
+* Learn to predict the reward offline and show that the model is capable of learning it
+  + Yes, the model can predict; see `encoder_dist`
 * Try to run more experiments on Google Colab with GPU (folder `gpu_scripts`)
+  + Yes, scripts now automatically make use of GPU
+  + Pipeline shown to be working
+* PPO itself is proven to be working, by `ppo_state_v0`
+  + Frozen backbone + PPO is proven to be working, by `ppo_pretrained_iage_v0`
 
 
 ## Problems Encountered
@@ -58,21 +73,9 @@ RewardPredictor(
 )
 ```
 
-### Stateful Encoder
+By the way, it seems that RAdam is not quite helping with encoder training.
 
-The image encoder is stateful rather than stateless, because the LSTM wants to know
-the encoding of the previous frame, so that it updates its embedding accordingly;
-I'm left with 2 hack-y solutions:
-
-* Inject LSTM embedding into state representation, OR
-* Make `actor_critic.step()` function stateful, requiring `.reset()` when episode ends
-
-I ended up going with the 2nd approach as I think it is cleaner; however, the code
-would not work, if the environment we're working with can terminate early; the
-batching during actor and critic gradient update part will be messed up.
-
-
-## Future Work
+### Doubts about Fully Convolutional Model
 
 In theory, the convolution operation is translation invariant, meaning that if we
 keep running the convolution operation until the image size goes to 1x1, then we
@@ -88,3 +91,35 @@ that it actually converged, I still think it's likely learning weird hacks, e.g:
 * Use LSTM to figure out motion pattern and guess agent locations
 * Use the fact that convolution padding always =0 to develop its sense of border
   and thus become capable to compute x and y offsets from border
+
+
+### Stateful Encoder
+
+The image encoder is stateful rather than stateless, because the LSTM wants to know
+the encoding of the previous frame, so that it updates its embedding accordingly;
+I'm left with 2 hack-y solutions:
+
+* Inject LSTM embedding into state representation, OR
+* Make `actor_critic.step()` function stateful, requiring `.reset()` when episode ends
+
+I ended up going with the 2nd approach as I think it is cleaner; however, the code
+would not work, if the environment we're working with can terminate early; the
+batching during actor and critic gradient update part will be messed up. For those
+environments, we would need to pad trajectories and use done masks.
+
+
+### Non-converging Finetune
+
+It appears that if I naively train actor and critic with shared encoder in end-to-end
+fashion, the training process does not improve reward over long period of time.
+
+
+### Doubts about Critic
+
+Because our environment has fixed length, I think the value function of each state
+not only depends on current state but also remaining time left. It's very weird to force
+the model to learn this kind of value. And it's insane that the algorithm is still
+working anyways.
+
+
+
