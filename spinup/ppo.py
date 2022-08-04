@@ -226,7 +226,12 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     # Create actor-critic module
     ac_kwargs["max_ep_len"] = env.max_ep_len  # TODO(jiahang): remove hack
     ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
-    device = torch.device('cuda:0') if ac.use_gpu else torch.device('cpu')
+    if ac.use_gpu:
+        print("===> TRAINING ON GPU <===")
+        device = torch.device('cuda:0')
+        ac = ac.to(device)
+    else:
+        device = torch.device('cpu')
 
     # Sync params across processes
     sync_params(ac)
