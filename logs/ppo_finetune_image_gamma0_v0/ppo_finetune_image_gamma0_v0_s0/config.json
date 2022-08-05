@@ -1,34 +1,34 @@
 {
     "ac_kwargs":	{
-        "freeze":	true,
+        "freeze":	false,
         "rewards":	"agent_x,agent_y,target_x,target_y",
         "savedir":	"./logs/reward_model/step-999.pth"
     },
     "actor_critic":	"ImageActorCritic",
     "clip_ratio":	0.2,
-    "env_fn":	"<function <lambda> at 0x0000029C67FD3D08>",
+    "env_fn":	"<function <lambda> at 0x00000267B1CB3D08>",
     "epochs":	100,
-    "exp_name":	"ppo_pretrained_image_gamma0_v0",
+    "exp_name":	"ppo_finetune_image_gamma0_v0",
     "gamma":	0.0,
     "lam":	0.97,
     "logger":	{
-        "<spinup.utils.logx.EpochLogger object at 0x0000029C67FE5780>":	{
+        "<spinup.utils.logx.EpochLogger object at 0x00000267B1CC47B8>":	{
             "epoch_dict":	{},
-            "exp_name":	"ppo_pretrained_image_gamma0_v0",
+            "exp_name":	"ppo_finetune_image_gamma0_v0",
             "first_row":	true,
             "log_current_row":	{},
             "log_headers":	[],
-            "output_dir":	"./logs\\ppo_pretrained_image_gamma0_v0\\ppo_pretrained_image_gamma0_v0_s0",
+            "output_dir":	"./logs\\ppo_finetune_image_gamma0_v0\\ppo_finetune_image_gamma0_v0_s0",
             "output_file":	{
-                "<_io.TextIOWrapper name='./logs\\\\ppo_pretrained_image_gamma0_v0\\\\ppo_pretrained_image_gamma0_v0_s0\\\\progress.txt' mode='w' encoding='cp932'>":	{
+                "<_io.TextIOWrapper name='./logs\\\\ppo_finetune_image_gamma0_v0\\\\ppo_finetune_image_gamma0_v0_s0\\\\progress.txt' mode='w' encoding='cp932'>":	{
                     "mode":	"w"
                 }
             }
         }
     },
     "logger_kwargs":	{
-        "exp_name":	"ppo_pretrained_image_gamma0_v0",
-        "output_dir":	"./logs\\ppo_pretrained_image_gamma0_v0\\ppo_pretrained_image_gamma0_v0_s0"
+        "exp_name":	"ppo_finetune_image_gamma0_v0",
+        "output_dir":	"./logs\\ppo_finetune_image_gamma0_v0\\ppo_finetune_image_gamma0_v0_s0"
     },
     "max_ep_len":	1000,
     "pi_lr":	0.0003,

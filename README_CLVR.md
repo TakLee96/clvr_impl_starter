@@ -6,6 +6,7 @@ Author: Jiahang(Tak) Li
 
 * Reason if it's problem with LSTM setup
 * Print the "advantage" values and the predicted ones, see if it makes sense
+  + Well... no, cuz we're facing the ep-40 cutoff problem
 * Print the gradient distribution from actor and critic, and see if it matches
   + If not, we may need to tune learning rate
   + We can also set learning rate for backbone separately
@@ -22,7 +23,27 @@ Author: Jiahang(Tak) Li
   + Yes, scripts now automatically make use of GPU
   + Pipeline shown to be working
 * PPO itself is proven to be working, by `ppo_state_v0`
-  + Frozen backbone + PPO is proven to be working, by `ppo_pretrained_iage_v0`
+  + Frozen backbone + PPO is proven to be working, by `ppo_pretrained_image_v0`
+
+
+## Environment Setup
+
+I trained encoders on MacBook CPU, and PPO on Nvidia 3080 (CUDA Windows).
+* CPU: ~1.2 seconds per batch of 64 x steps of 40
+* GPU: ~30 seconds per epoch of 4000 steps
+
+```bash
+conda create --name spinningup python=3.6
+git clone git@github.com:TakLee96/clvr_impl_starter.git
+git clone git@github.com:openai/spinningup.git
+
+# change setup.py torch version
+cd spinningup
+pip3 install -e .
+
+cd ../clvr_impl_starter
+pip3 install -r requirements.txt
+```
 
 
 ## Problems Encountered
