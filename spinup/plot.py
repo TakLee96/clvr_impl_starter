@@ -133,6 +133,7 @@ def get_all_datasets(all_logdirs, legend=None, select=None, exclude=None):
             prefix = logdir.split(os.sep)[-1]
             listdir= os.listdir(basedir)
             logdirs += sorted([fulldir(x) for x in listdir if prefix in x])
+    print(logdirs)
 
     """
     Enforce selection rules, which check logdirs for certain substrings.

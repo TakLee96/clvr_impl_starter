@@ -30,7 +30,7 @@ Author: Jiahang(Tak) Li
 
 I trained encoders on MacBook CPU, and PPO on Nvidia 3080 (CUDA Windows).
 * CPU: ~1.2 seconds per batch of 64 x steps of 40
-* GPU: ~30 seconds per epoch of 4000 steps
+* GPU: ~30 seconds per epoch of 4000 steps (100 trajectories)
 
 ```bash
 conda create --name spinningup python=3.6
@@ -44,6 +44,35 @@ pip3 install -e .
 cd ../clvr_impl_starter
 pip3 install -r requirements.txt
 ```
+
+To train encoder:
+```bash
+. scripts/train_encoder.sh
+```
+
+To train ppo experiment:
+```bash
+. scripts/train_ppo_pretrained_image_gamma0_v0.sh
+```
+
+
+## File Structure
+
+These are the new files:
+```
+logs/            -- logs of all training results
+scripts/         -- bash scripts to launch experiments (hold parameters)
+spinup/
+  ppo.py         -- ppo training loop
+  core.py        -- actor/critic definition
+  plot.py        -- plot reward x step curve
+  test_policy.py -- test policy and save trajectory as images
+main.py          -- python entrypoint (uses fire.Fire)
+model.py         -- encoder/decoder definition
+train.py         -- encoder/decoder training loop
+README_CLVR.md   -- this markdown file
+```
+
 
 
 ## Problems Encountered
