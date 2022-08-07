@@ -7,27 +7,27 @@
     "clip_ratio":	0.2,
     "env_fn":	"<function <lambda> at 0x7fb2fb88e400>",
     "epochs":	200,
-    "exp_name":	"ppo_pretrained_image_v1",
+    "exp_name":	"ppo_finetune_image_v1",
     "gamma":	0.99,
     "lam":	0.97,
     "logger":	{
         "<spinup.utils.logx.EpochLogger object at 0x7fb2fb895978>":	{
             "epoch_dict":	{},
-            "exp_name":	"ppo_pretrained_image_v1",
+            "exp_name":	"ppo_finetune_image_v1",
             "first_row":	true,
             "log_current_row":	{},
             "log_headers":	[],
-            "output_dir":	"./logs/ppo_pretrained_image_v1/ppo_pretrained_image_v1_s1",
+            "output_dir":	"./logs/ppo_finetune_image_v1/ppo_finetune_image_v1_s1",
             "output_file":	{
-                "<_io.TextIOWrapper name='./logs/ppo_pretrained_image_v1/ppo_pretrained_image_v1_s1/progress.txt' mode='w' encoding='UTF-8'>":	{
+                "<_io.TextIOWrapper name='./logs/ppo_finetune_image_v1/ppo_finetune_image_v1_s1/progress.txt' mode='w' encoding='UTF-8'>":	{
                     "mode":	"w"
                 }
             }
         }
     },
     "logger_kwargs":	{
-        "exp_name":	"ppo_pretrained_image_v1",
-        "output_dir":	"./logs/ppo_pretrained_image_v1/ppo_pretrained_image_v1_s1"
+        "exp_name":	"ppo_finetune_image_v1",
+        "output_dir":	"./logs/ppo_finetune_image_v1/ppo_finetune_image_v1_s1"
     },
     "max_ep_len":	1000,
     "pi_lr":	0.0003,
