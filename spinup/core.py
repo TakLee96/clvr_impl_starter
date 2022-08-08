@@ -356,3 +356,50 @@ class SimpleImageActorCritic(nn.Module):
 
     def act(self, obs):
         return self.step(obs)[0]
+
+
+class BrainSplitImageActorCritic(nn.Module):
+    def __init__(self, observation_space, action_space, max_ep_len,
+                 savedir=None, freeze=True,
+                 rewards="agent_x,agent_y,target_x,target_y"):
+        super().__init__()
+        self.use_gpu = torch.cuda.is_available()
+        rewards = [
+            r.strip() for r in rewards.split(',') if len(r.strip()) > 0 ]
+        
+        def get_image_encoder():
+            image_encoder = model.RewardPredictor(rewards, use_gpu=self.use_gpu)
+            if savedir is not None:
+                image_encoder.load_state_dict(torch.load(savedir))
+                print(f'Loaded {savedir}')
+            else:
+                print('Start from Scratch')
+            if freeze:
+                for param in image_encoder.parameters():
+                    param.require_grad = False
+                print("Image encoder weights FROZEN")
+            else:
+                print("Image encoder is TRAINABLE")
+            assert observation_space.shape[0] == image_encoder.image_encoder.R
+            return ImageEncoderShim(image_encoder, max_ep_len)
+
+        self.pi = ImageActor(freeze, get_image_encoder(), action_space.shape[0])
+        self.v  = ImageCritic(freeze, get_image_encoder())
+
+    def reset(self):
+        self.pi.get_encoder().reset()
+        self.v.get_encoder().reset()
+
+    def step(self, obs):
+        # simulation mode
+        with torch.no_grad():
+            pi = self.pi._fast_distribution(self.pi.get_encoder()(obs, simulation_mode=True))
+            a = pi.sample()
+            logp_a = self.pi._log_prob_from_distribution(pi, a)
+            v = self.v.fast_forward(self.v.get_encoder()(obs, simulation_mode=True))
+        if self.use_gpu:
+            return a.to('cpu').numpy(), v.to('cpu').numpy(), logp_a.to('cpu').numpy()
+        return a.numpy(), v.numpy(), logp_a.numpy()
+
+    def act(self, obs):
+        return self.step(obs)[0]
