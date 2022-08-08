@@ -227,7 +227,7 @@ def train_encoder(
             loss.backward()
             optimizer.step()
 
-            print(f"[{time.time() - t:.3f}s] step={step} loss={loss.item():.5f}")
+            print(f"[{time.time() - t:.3f}s] step={step} loss={loss.item():.5f}", flush=True)
             if step % steps_per_save == (steps_per_save - 1):
                 torch.save(net.state_dict(), savedir + f"step-{step}.pth")
                 print("saved model to " + savedir + f"step-{step}.pth")
