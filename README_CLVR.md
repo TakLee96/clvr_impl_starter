@@ -4,9 +4,13 @@ Author: Jiahang(Tak) Li
 
 ## ToDo
 
+* Evaluate trained agent with live critic information
+* Brain split the backbone into 2 independent parts (black box debugging)
 * Reason if it's problem with LSTM setup
+  + Stateful batching is error-prone, but it should be working now
 * Print the "advantage" values and the predicted ones, see if it makes sense
   + Well... no, cuz we're facing the ep-40 cutoff problem
+  + But with the bootstrap fix, it should be correct now
 * Print the gradient distribution from actor and critic, and see if it matches
   + If not, we may need to tune learning rate
   + We can also set learning rate for backbone separately
