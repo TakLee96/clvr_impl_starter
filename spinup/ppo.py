@@ -386,6 +386,7 @@ if __name__ == '__main__':
     parser.add_argument('--env', type=str, default='SpritesState-v0')
     parser.add_argument('--model', type=str, default='MLPActorCritic')
     parser.add_argument('--gamma', type=float, default=0.99)
+    parser.add_argument('--lam', type=float, default=0.97)
     parser.add_argument('--seed', '-s', type=int, default=0)
     parser.add_argument('--cpu', type=int, default=4)
     parser.add_argument('--steps', type=int, default=4000)
@@ -413,5 +414,5 @@ if __name__ == '__main__':
             "freeze": args.freeze,
             "rewards": args.rewards
         },
-        gamma=args.gamma, seed=args.seed, steps_per_epoch=args.steps,
+        gamma=args.gamma, lam=args.lam, seed=args.seed, steps_per_epoch=args.steps,
         epochs=args.epochs, logger_kwargs=logger_kwargs, pi_lr=args.pi_lr, vf_lr=args.vf_lr)
