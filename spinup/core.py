@@ -282,3 +282,77 @@ class ImageActorCritic(nn.Module):
 
     def act(self, obs):
         return self.step(obs)[0]
+
+
+class SimpleImageEncoderShim(nn.Module):
+    def __init__(self, image_encoder):
+        super().__init__()
+        self.image_encoder = image_encoder
+        self.output_size = image_encoder.C
+    
+    def reset(self):
+        pass
+
+    def forward(self, obs, simulation_mode=False):
+        """ obs: either (64, 64) or (1000, 64, 64) """
+        if simulation_mode:
+            # simulation mode: remember hidden state
+            assert obs.dim() == 2
+            H, W = obs.shape
+            obs = obs.view(1, 1, 1, H, W).expand(1, 1, 3, H, W)
+            y = self.image_encoder(obs)
+            y = y.view(-1)
+        else:
+            # training mode
+            assert obs.dim() == 3
+            BT, H, W = obs.shape
+            obs = obs.view(1, BT, 1, H, W).expand(1, BT, 3, H, W)
+            y = self.image_encoder(obs)
+            y = y.reshape(BT, -1)
+        return y
+
+
+class SimpleImageActorCritic(nn.Module):
+    def __init__(self, observation_space, action_space, max_ep_len,
+                 savedir=None, freeze=True,
+                 rewards="agent_x,agent_y,target_x,target_y"):
+        super().__init__()
+        self.use_gpu = torch.cuda.is_available()
+        image_encoder = model.RewardPredictor([
+            r.strip() for r in rewards.split(',') if len(r.strip()) > 0 ],
+            use_gpu=self.use_gpu
+        )
+        if savedir is not None:
+            image_encoder.load_state_dict(torch.load(savedir))
+            print(f'Loaded {savedir}')
+        else:
+            print('Start from Scratch')
+        if freeze:
+            for param in image_encoder.parameters():
+                param.require_grad = False
+            print("Image encoder weights FROZEN")
+        else:
+            print("Image encoder is TRAINABLE")
+        assert observation_space.shape[0] == image_encoder.image_encoder.R
+
+        self.image_encoder = SimpleImageEncoderShim(image_encoder.image_encoder)
+        self.pi = ImageActor(freeze, self.image_encoder, action_space.shape[0])
+        self.v  = ImageCritic(freeze, self.image_encoder)
+
+    def reset(self):
+        pass
+
+    def step(self, obs):
+        # simulation mode
+        with torch.no_grad():
+            y = self.image_encoder(obs, simulation_mode=True)
+            pi = self.pi._fast_distribution(y)
+            a = pi.sample()
+            logp_a = self.pi._log_prob_from_distribution(pi, a)
+            v = self.v.fast_forward(y)
+        if self.use_gpu:
+            return a.to('cpu').numpy(), v.to('cpu').numpy(), logp_a.to('cpu').numpy()
+        return a.numpy(), v.numpy(), logp_a.numpy()
+
+    def act(self, obs):
+        return self.step(obs)[0]
