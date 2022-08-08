@@ -390,6 +390,8 @@ if __name__ == '__main__':
     parser.add_argument('--cpu', type=int, default=4)
     parser.add_argument('--steps', type=int, default=4000)
     parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--pi_lr', type=float, default=3e-4)
+    parser.add_argument('--vf_lr', type=float, default=1e-3)
     parser.add_argument('--exp_name', type=str, default='ppo')
     parser.add_argument('--data_dir', type=str, default='./logs')
     parser.add_argument('--savedir', type=str, default=None)
@@ -412,4 +414,4 @@ if __name__ == '__main__':
             "rewards": args.rewards
         },
         gamma=args.gamma, seed=args.seed, steps_per_epoch=args.steps,
-        epochs=args.epochs, logger_kwargs=logger_kwargs)
+        epochs=args.epochs, logger_kwargs=logger_kwargs, pi_lr=args.pi_lr, vf_lr=args.vf_lr)
