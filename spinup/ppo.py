@@ -393,6 +393,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--pi_lr', type=float, default=3e-4)
     parser.add_argument('--vf_lr', type=float, default=1e-3)
+    parser.add_argument('--activation', type=str, choices=['relu', 'tanh'], default='relu')
     parser.add_argument('--exp_name', type=str, default='ppo')
     parser.add_argument('--data_dir', type=str, default='./logs')
     parser.add_argument('--savedir', type=str, default=None)
@@ -408,11 +409,15 @@ if __name__ == '__main__':
     from spinup.utils.run_utils import setup_logger_kwargs
     logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed, data_dir=args.data_dir)
 
+    activations = { 'relu': torch.nn.ReLU, 'tanh': torch.nn.Tanh }
+    activation = activations[args.activation]
+
     ppo(lambda : gym.make(args.env), actor_critic=getattr(core, args.model),
         ac_kwargs={
             "savedir": args.savedir,
             "freeze": args.freeze,
-            "rewards": args.rewards
+            "rewards": args.rewards,
+            "activation": activation
         },
         gamma=args.gamma, lam=args.lam, seed=args.seed, steps_per_epoch=args.steps,
         epochs=args.epochs, logger_kwargs=logger_kwargs, pi_lr=args.pi_lr, vf_lr=args.vf_lr)

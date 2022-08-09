@@ -183,7 +183,7 @@ class ImageEncoderShim(nn.Module):
 
 
 class ImageActor(Actor):
-    def __init__(self, freeze, image_encoder, act_dim):
+    def __init__(self, freeze, image_encoder, act_dim, activation):
         super().__init__()
 
         # hack: force torch to not register parameters if frozen
@@ -193,7 +193,7 @@ class ImageActor(Actor):
         else:
             self.image_encoder = image_encoder
 
-        self.actor = MLPGaussianActor(image_encoder.output_size, act_dim)
+        self.actor = MLPGaussianActor(image_encoder.output_size, act_dim, activation=activation)
 
     def get_encoder(self):
         if self.freeze:
@@ -213,7 +213,7 @@ class ImageActor(Actor):
 
 
 class ImageCritic(nn.Module):
-    def __init__(self, freeze, image_encoder):
+    def __init__(self, freeze, image_encoder, activation):
         super().__init__()
 
         # hack: force torch to not register parameters if frozen
@@ -222,7 +222,7 @@ class ImageCritic(nn.Module):
             self.image_encoder = [ image_encoder ]
         else:
             self.image_encoder = image_encoder
-        self.critic = MLPCritic(image_encoder.output_size)
+        self.critic = MLPCritic(image_encoder.output_size, activation=activation)
 
     def get_encoder(self):
         if self.freeze:
@@ -240,7 +240,7 @@ class ImageCritic(nn.Module):
 
 class ImageActorCritic(nn.Module):
     def __init__(self, observation_space, action_space, max_ep_len,
-                 savedir=None, freeze=True,
+                 savedir=None, freeze=True, activation=nn.ReLU,
                  rewards="agent_x,agent_y,target_x,target_y"):
         super().__init__()
         self.use_gpu = torch.cuda.is_available()
@@ -262,8 +262,8 @@ class ImageActorCritic(nn.Module):
         assert observation_space.shape[0] == image_encoder.image_encoder.R
 
         self.image_encoder = ImageEncoderShim(image_encoder, max_ep_len)
-        self.pi = ImageActor(freeze, self.image_encoder, action_space.shape[0])
-        self.v  = ImageCritic(freeze, self.image_encoder)
+        self.pi = ImageActor(freeze, self.image_encoder, action_space.shape[0], activation=activation)
+        self.v  = ImageCritic(freeze, self.image_encoder, activation=activation)
 
     def reset(self):
         self.image_encoder.reset()
