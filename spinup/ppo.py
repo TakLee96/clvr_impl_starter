@@ -102,7 +102,7 @@ class PPOBuffer:
 def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0, 
         steps_per_epoch=4000, epochs=50, gamma=0.99, clip_ratio=0.2, pi_lr=3e-4,
         vf_lr=1e-3, train_pi_iters=80, train_v_iters=80, lam=0.97, max_ep_len=1000,
-        target_kl=0.01, logger_kwargs=dict(), save_freq=10):
+        target_kl=0.01, logger_kwargs=dict(), save_freq=10, adaptive_lr=False):
     """
     Proximal Policy Optimization (by clipping), 
 
@@ -275,6 +275,8 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
     # Set up model saving
     logger.setup_pytorch_saver(ac)
+    flags = { 'bad_pi_counter': 0, 'long_train_counter': 0 }
+    const_trigger_epochs = 2
 
     def update():
         data = buf.get()
@@ -290,10 +292,32 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             kl = mpi_avg(pi_info['kl'])
             if kl > 1.5 * target_kl:
                 logger.log('Early stopping at step %d due to reaching max kl.'%i)
+
+                # adapt learning rate to shrink down
+                if adaptive_lr and loss_pi.item() > pi_l_old:
+                    flags['bad_pi_counter'] += 1
+                    flags['long_train_counter'] = 0
+                    if flags['bad_pi_counter'] >= const_trigger_epochs:
+                        flags['bad_pi_counter'] = 0
+                        for g in pi_optimizer.param_groups:
+                            g['lr'] = g['lr'] * 0.9
+                            logger.log(f'Shrink learning rate down to {g["lr"]}')
+                
                 break
             loss_pi.backward()
             mpi_avg_grads(ac.pi)    # average grads across MPI processes
             pi_optimizer.step()
+        else:
+            flags['bad_pi_counter'] = 0
+        
+        # adapt learning rate to scale up
+        if adaptive_lr and i >= train_pi_iters - 1:
+            flags['long_train_counter'] += 1
+            if flags['long_train_counter'] > const_trigger_epochs:
+                flags['long_train_counter'] = 0
+                for g in pi_optimizer.param_groups:
+                    g['lr'] = g['lr'] * 1.1
+                    logger.log(f'Scaling learning rate up to {g["lr"]}')
 
         logger.store(StopIter=i)
 
@@ -398,6 +422,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir', type=str, default='./logs')
     parser.add_argument('--savedir', type=str, default=None)
     parser.add_argument('--freeze', action='store_true')
+    parser.add_argument('--adaptive_lr', action='store_true')
     parser.add_argument('--rewards', type=str, default="agent_x,agent_y,target_x,target_y")
     args = parser.parse_args()
 
@@ -420,4 +445,4 @@ if __name__ == '__main__':
             "activation": activation
         },
         gamma=args.gamma, lam=args.lam, seed=args.seed, steps_per_epoch=args.steps,
-        epochs=args.epochs, logger_kwargs=logger_kwargs, pi_lr=args.pi_lr, vf_lr=args.vf_lr)
+        epochs=args.epochs, logger_kwargs=logger_kwargs, pi_lr=args.pi_lr, vf_lr=args.vf_lr, adaptive_lr=args.adaptive_lr)
