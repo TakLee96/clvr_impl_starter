@@ -348,7 +348,7 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         for t in range(local_steps_per_epoch):
             a, v, logp = ac.step(torch.as_tensor(o, dtype=torch.float32).to(device))
             if log_v:
-                v = torch.exp(v)
+                v = np.exp(v)
 
             next_o, r, d, _ = env.step(a)
             ep_ret += r
@@ -377,7 +377,7 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 #     v = 0
                 _, v, _ = ac.step(torch.as_tensor(o, dtype=torch.float32).to(device))
                 if log_v:
-                    v = torch.exp(v)
+                    v = np.exp(v)
                 buf.finish_path(v)
                 if terminal:
                     # only save EpRet / EpLen if trajectory finished
