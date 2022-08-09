@@ -102,7 +102,7 @@ class PPOBuffer:
 def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0, 
         steps_per_epoch=4000, epochs=50, gamma=0.99, clip_ratio=0.2, pi_lr=3e-4,
         vf_lr=1e-3, train_pi_iters=80, train_v_iters=80, lam=0.97, max_ep_len=1000,
-        target_kl=0.01, logger_kwargs=dict(), save_freq=10, adaptive_lr=False):
+        target_kl=0.01, logger_kwargs=dict(), save_freq=10, adaptive_lr=False, log_v=False):
     """
     Proximal Policy Optimization (by clipping), 
 
@@ -267,6 +267,8 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     # Set up function for computing value loss
     def compute_loss_v(data):
         obs, ret = data['obs'], data['ret']
+        if log_v:
+            return ((ac.v(obs) - torch.log(ret))**2).mean()
         return ((ac.v(obs) - ret)**2).mean()
 
     # Set up optimizers for policy and value function
@@ -345,6 +347,8 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     for epoch in range(epochs):
         for t in range(local_steps_per_epoch):
             a, v, logp = ac.step(torch.as_tensor(o, dtype=torch.float32).to(device))
+            if log_v:
+                v = torch.exp(v)
 
             next_o, r, d, _ = env.step(a)
             ep_ret += r
@@ -372,6 +376,8 @@ def ppo(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
                 # else:
                 #     v = 0
                 _, v, _ = ac.step(torch.as_tensor(o, dtype=torch.float32).to(device))
+                if log_v:
+                    v = torch.exp(v)
                 buf.finish_path(v)
                 if terminal:
                     # only save EpRet / EpLen if trajectory finished
@@ -423,6 +429,7 @@ if __name__ == '__main__':
     parser.add_argument('--savedir', type=str, default=None)
     parser.add_argument('--freeze', action='store_true')
     parser.add_argument('--adaptive_lr', action='store_true')
+    parser.add_argument('--log_v', action='store_true')
     parser.add_argument('--rewards', type=str, default="agent_x,agent_y,target_x,target_y")
     args = parser.parse_args()
 
@@ -445,4 +452,5 @@ if __name__ == '__main__':
             "activation": activation
         },
         gamma=args.gamma, lam=args.lam, seed=args.seed, steps_per_epoch=args.steps,
-        epochs=args.epochs, logger_kwargs=logger_kwargs, pi_lr=args.pi_lr, vf_lr=args.vf_lr, adaptive_lr=args.adaptive_lr)
+        epochs=args.epochs, logger_kwargs=logger_kwargs, log_v=args.log_v,
+        pi_lr=args.pi_lr, vf_lr=args.vf_lr, adaptive_lr=args.adaptive_lr)

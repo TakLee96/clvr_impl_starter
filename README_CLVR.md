@@ -4,6 +4,8 @@ Author: Jiahang(Tak) Li
 
 ## ToDo
 
+* Save learning rate changes into logs
+* Modify value function predictor to output exponential
 * Evaluate trained agent with live critic information
 * Brain split the backbone into 2 independent parts (black box debugging)
 * Reason if it's problem with LSTM setup
