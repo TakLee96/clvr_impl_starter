@@ -66,3 +66,14 @@ class TargetYReward(Reward):
     def __call__(self, trajectories, shapes):
         return trajectories[:, 1, 0]
 
+
+class DistanceReward(Reward):
+    """Returns reward proportional to the vertical position of the target. Assumes that target is the second object."""
+    NAME = 'dist'
+
+    def __call__(self, trajectories, shapes):
+        target_pos = trajectories[:, 1, :2]
+        agent_pos = trajectories[:, 0, :2]
+        return 1. - np.sqrt(
+            ((target_pos - agent_pos) ** 2).sum(axis=1)
+        ) / np.sqrt(2)

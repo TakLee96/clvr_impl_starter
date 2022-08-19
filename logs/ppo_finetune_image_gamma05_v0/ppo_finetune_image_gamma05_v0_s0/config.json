@@ -1,0 +1,43 @@
+{
+    "ac_kwargs":	{
+        "activation":	"ReLU",
+        "freeze":	false,
+        "rewards":	"agent_x,agent_y,target_x,target_y",
+        "savedir":	"./logs/reward_model/step-999.pth"
+    },
+    "actor_critic":	"ImageActorCritic",
+    "clip_ratio":	0.2,
+    "env_fn":	"<function <lambda> at 0x000001A5267AB488>",
+    "epochs":	500,
+    "exp_name":	"ppo_finetune_image_gamma05_v0",
+    "gamma":	0.5,
+    "lam":	0.97,
+    "logger":	{
+        "<spinup.utils.logx.EpochLogger object at 0x000001A5267B13C8>":	{
+            "epoch_dict":	{},
+            "exp_name":	"ppo_finetune_image_gamma05_v0",
+            "first_row":	true,
+            "log_current_row":	{},
+            "log_headers":	[],
+            "output_dir":	"./logs\\ppo_finetune_image_gamma05_v0\\ppo_finetune_image_gamma05_v0_s0",
+            "output_file":	{
+                "<_io.TextIOWrapper name='./logs\\\\ppo_finetune_image_gamma05_v0\\\\ppo_finetune_image_gamma05_v0_s0\\\\progress.txt' mode='w' encoding='cp932'>":	{
+                    "mode":	"w"
+                }
+            }
+        }
+    },
+    "logger_kwargs":	{
+        "exp_name":	"ppo_finetune_image_gamma05_v0",
+        "output_dir":	"./logs\\ppo_finetune_image_gamma05_v0\\ppo_finetune_image_gamma05_v0_s0"
+    },
+    "max_ep_len":	1000,
+    "pi_lr":	0.0003,
+    "save_freq":	10,
+    "seed":	0,
+    "steps_per_epoch":	4000,
+    "target_kl":	0.01,
+    "train_pi_iters":	80,
+    "train_v_iters":	80,
+    "vf_lr":	0.001
+}

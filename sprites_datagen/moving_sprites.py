@@ -13,6 +13,9 @@ class MovingSpriteDataset(Dataset):
         self._spec = spec
         self._generator = DistractorTemplateMovingSpritesGenerator(self._spec)
 
+    def __len__(self):
+        return self._spec.batch_size
+
     def __getitem__(self, item):
         traj = self._generator.gen_trajectory()
 
@@ -106,9 +109,11 @@ class DistractorTemplateMovingSpritesGenerator(TemplateMovingSpritesGenerator):
 
     def _sample_shapes(self):
         """Retrieves shapes for agent and target, samples randomly from other shapes for distractors."""
-        assert self._spec.shapes_per_traj >= 2
-        shape_idxs = np.asarray([self.SHAPES.index(self.AGENT), self.SHAPES.index(self.TARGET)])
-        distractor_idxs = np.setdiff1d(np.arange(len(self.SHAPES)), shape_idxs)
+        if self._spec.shapes_per_traj >= 2:
+            shape_idxs = np.asarray([self.SHAPES.index(self.AGENT), self.SHAPES.index(self.TARGET)])
+            distractor_idxs = np.setdiff1d(np.arange(len(self.SHAPES)), shape_idxs)
+        else:
+            shape_idxs = np.asarray([self.SHAPES.index("tri_bottom")])
         if self._spec.shapes_per_traj > 2:
             shape_idxs = np.concatenate((shape_idxs,
                                          np.random.choice(distractor_idxs, size=self._spec.shapes_per_traj - 2)))
